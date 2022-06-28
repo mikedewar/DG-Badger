@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"math"
 	"math/big"
@@ -18,8 +17,8 @@ A simple implementation of Algorithms 1 and 2 in "An Efficient and Scalable Algo
 */
 
 type Edge struct {
-	from int64
-	to   int64
+	From int64 `json:"from"`
+	To   int64 `json:"to"`
 }
 
 type DG struct {
@@ -35,8 +34,8 @@ func main() {
 
 	var n, D []int64
 
-	D = []int64{1, 2, 3, 4, 5, 8, 9, 10}
-	n = []int64{800, 700, 60, 50, 40, 30, 20, 10}
+	D = []int64{1, 2, 3, 4, 5, 8, 9, 10, 100, 500, 1000}
+	n = []int64{8000, 7000, 6000, 5000, 4000, 3000, 2000, 1000, 10, 10, 5}
 
 	//D = []int64{1, 4}
 	//n = []int64{4, 1}
@@ -48,23 +47,9 @@ func main() {
 
 	go dg.DG_CL(D)
 
-	nodes := make(map[int64]interface{})
+	numEdges := WriteEdges(dg.edgeChan)
 
-	fmt.Println("Source , Target")
-	for e := range dg.edgeChan {
-		fmt.Println(e.from, ",", e.to)
-
-		nodes[e.from] = nil
-		nodes[e.to] = nil
-	}
-
-	log.Println("number of nodes:", len(nodes))
-	var expectedNodes int64
-	expectedNodes = 0
-	for _, ni := range n {
-		expectedNodes += ni
-	}
-	log.Println("hoped for number of nodes:", expectedNodes)
+	log.Println("Wrote", numEdges, "edges")
 
 }
 
@@ -106,8 +91,10 @@ func (dg *DG) EDGE_SKIPPING(i, j int64, p float64, start, end int64) {
 			}
 			//log.Println("i:", i, "j:", j, "x:", x, "u:", u, "v:", v)
 			if dg.λ[i]+u == dg.λ[j]+v {
-				log.Println("uh oh")
+				// something is causing a handful, like 5 out of 20,000, of self edges.
+				// pretty sure it's a bug, so somethign to dig into
 				//log.Fatal(i, u, j, v)
+				continue
 			}
 			// output edge (Alg1 line 11)
 			dg.edgeChan <- Edge{dg.λ[i] + u, dg.λ[j] + v}
