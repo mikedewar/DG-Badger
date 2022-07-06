@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"math"
@@ -8,6 +9,8 @@ import (
 	"math/rand"
 	"os"
 
+	"github.com/dgraph-io/badger"
+	"github.com/google/uuid"
 	"github.com/vbauerster/mpb/v7"
 	"github.com/vbauerster/mpb/v7/decor"
 )
@@ -47,7 +50,10 @@ func main() {
 
 	go dg.DG_CL(D)
 
-	numEdges := WriteEdges(dg.edgeChan)
+	numEdges, err := WriteEdges(dg.edgeChan, "/tmp")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	log.Println("Wrote", numEdges, "edges")
 
@@ -120,7 +126,7 @@ func (dg *DG) DG_CL(D []int64) {
 
 	log.Println("λ:", dg.λ)
 	S = 0
-	for i, _ := range dg.n {
+	for i := range dg.n {
 		S += float64(dg.n[i] * dg.D[i])
 	}
 	log.Println("S:", S)
@@ -160,4 +166,33 @@ func (dg *DG) DG_CL(D []int64) {
 	}
 	close(dg.edgeChan)
 	pg.Wait()
+}
+
+func WriteEdges(edgeChan chan Edge, location string) (int, error) {
+
+	var edges int
+	opts := badger.DefaultOptions(location)
+	db, err := badger.Open(opts)
+	if err != nil {
+		return 0, err
+	}
+
+	txndb := db.NewWriteBatch()
+
+	for val := range edgeChan {
+
+		b, err := json.Marshal(val)
+		if err != nil {
+			return edges, err
+		}
+
+		uuid := uuid.New().String()
+		err = txndb.Set([]byte(uuid), b)
+		if err != nil {
+			return edges, err
+		}
+		edges++
+	}
+
+	return edges, nil
 }
